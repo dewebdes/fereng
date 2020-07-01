@@ -59,6 +59,7 @@
 <img src="https://github.com/dewebdes/fereng/blob/master/multimedia/live/016.PNG">
 <code>
 ProxyPassMatch "^/(.*)$" "http://localhost:8080/$1"
+  <br>
 ProxyPassReverse  ^/(.*)$ http://localhost:8080/(.*)
 </code>
 </p>
