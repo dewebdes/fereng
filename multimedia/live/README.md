@@ -57,6 +57,10 @@
 <p>
 <h2>011. Setup proxy + SSL + Domain</h2>  
 <img src="https://github.com/dewebdes/fereng/blob/master/multimedia/live/016.PNG">
+<code>
+ProxyPassMatch "^/(.*)$" "http://localhost:8080/$1"
+ProxyPassReverse  ^/(.*)$ http://localhost:8080/(.*)
+</code>
 </p>
 
 <p>
