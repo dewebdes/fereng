@@ -1,0 +1,294 @@
+########### install snort ############
+
+apt install -y gcc libpcre3-dev zlib1g-dev libluajit-5.1-dev libpcap-dev openssl libssl-dev libnghttp2-dev libdumbnet-dev bison flex libdnet autoconf libtool
+mkdir ~/snort_src && cd ~/snort_src
+wget https://www.snort.org/downloads/snort/daq-2.0.7.tar.gz
+tar -xvzf daq-2.0.7.tar.gz
+cd daq-2.0.7
+autoreconf -f -i
+./configure && make && make install
+cd ~/snort_src
+wget https://www.snort.org/downloads/snort/snort-2.9.16.tar.gz
+tar -xvzf snort-2.9.16.tar.gz
+cd snort-2.9.16
+./configure --enable-sourcefire && make && make install
+ldconfig
+ln -s /usr/local/bin/snort /usr/sbin/snort
+mkdir -p /etc/snort/rules
+mkdir /var/log/snort
+mkdir /usr/local/lib/snort_dynamicrules
+chmod -R 5775 /etc/snort
+chmod -R 5775 /var/log/snort
+chmod -R 5775 /usr/local/lib/snort_dynamicrules
+touch /etc/snort/rules/white_list.rules
+touch /etc/snort/rules/black_list.rules
+touch /etc/snort/rules/local.rules
+cp ~/snort_src/snort-2.9.16/etc/*.conf* /etc/snort
+cp ~/snort_src/snort-2.9.16/etc/*.map /etc/snort
+
+
+#wget https://snort.org/downloads/registered/snortrules-snapshot-2983.tar.gz?oinkcode=06c205dbac75dce1adf21d8629c32726a32bead8 -O ~/registered.tar.gz
+#tar -xvf ~/registered.tar.gz -C /etc/snort
+
+wget https://snort.org/downloads/community/community-rules.tar.gz -O ~/community.tar.gz
+tar -xvf ~/community.tar.gz -C ~/
+cp ~/community-rules/* /etc/snort/rules
+sed -i 's/include \$RULE\_PATH/#include \$RULE\_PATH/' /etc/snort/snort.conf
+
+nano /etc/snort/snort.conf
+
+	# Setup the network addresses you are protecting
+	ipvar HOME_NET 116.202.159.139
+	# Set up the external network addresses. Leave as "any" in most situations
+	ipvar EXTERNAL_NET !$HOME_NET
+	# Path to your rules files (this can be a relative path)
+	var RULE_PATH /etc/snort/rules
+	var SO_RULE_PATH /etc/snort/so_rules
+	var PREPROC_RULE_PATH /etc/snort/preproc_rules
+	# Set the absolute path appropriately
+	var WHITE_LIST_PATH /etc/snort/rules
+	var BLACK_LIST_PATH /etc/snort/rules
+	# unified2
+	# Recommended for most installs
+	output unified2: filename snort.log, limit 128
+	include $RULE_PATH/local.rules
+	include $RULE_PATH/community.rules
+
+snort -T -c /etc/snort/snort.conf
+
+ip addr
+nano /etc/snort/rules/local.rules
+	alert icmp any any -> $HOME_NET any (msg:"ICMP test"; sid:10000001; rev:001;)
+
+snort -A console -i eth0 -c /etc/snort/snort.conf
+ping 116.202.159.139
+
+
+
+########### install nodejs ############
+
+apt-get install curl software-properties-common
+curl -sL https://deb.nodesource.com/setup_14.x | bash -
+apt-get install nodejs
+node -v
+nmp -v
+
+
+
+
+
+
+
+
+
+
+
+
+########### install hping ############
+
+
+
+
+apt-get update
+apt-get install hping3
+
+
+########### install scapy - complete ############
+
+apt update
+apt install python3-pip
+pip3 --version
+pip3 install --pre scapy[complete]
+
+
+########### firewall code - python ############
+
+#!/usr/bin/python
+import subprocess, sys
+cmd = "snort -A console -i eth0 -c /etc/snort/snort.conf"
+p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
+while True:
+    out = p.stderr.read(1)
+    if out == '' and p.poll() != None:
+        break
+    if out != '':
+        sys.stdout.write(out)
+        sys.stdout.flush()
+
+
+
+
+
+from scapy.all import *
+import threading
+import time
+import threading
+import time
+
+
+exitFlag = 0
+lastid = 1
+
+
+
+
+class packThread (threading.Thread):
+   def __init__(self, threadID, pack, layer):
+      threading.Thread.__init__(self)
+      self.threadID = threadID
+      self.pack = pack
+      self.layer = layer
+   def run(self):
+      print "Starting " + str(self.threadID)
+      print_packet(self.pack)
+      print "Exiting " + self.name
+
+
+
+
+
+
+class myThread (threading.Thread):
+   def __init__(self, threadID, name, counter):
+      threading.Thread.__init__(self)
+      self.threadID = threadID
+      self.name = name
+      self.counter = counter
+   def run(self):
+      print "Starting " + self.name
+      print_time(self.name, 5, self.counter)
+      print "Exiting " + self.name
+
+
+def print_time(threadName, counter, delay):
+   while counter:
+      if exitFlag:
+         threadName.exit()
+      time.sleep(delay)
+      print "%s: %s" % (threadName, time.ctime(time.time()))
+      counter -= 1
+
+
+# Create new threads
+# thread1 = myThread(1, "Thread-1", 1)
+# thread2 = myThread(2, "Thread-2", 2)
+
+
+# Start new Threads
+# thread1.start()
+# thread2.start()
+
+
+print "Exiting Main Thread"
+
+
+
+
+
+
+def show_interfaces(resolve_mac=True):
+    return IFACES.show(resolve_mac)
+
+
+
+
+interface = "ens33"
+
+
+def handle_packet(packet):
+    global lastid
+    lastid = lastid + 1
+    pt = packThread(lastid, packet, IP)
+    pt.start()
+
+
+
+
+def print_packet(packet):
+    ip_layer = packet.getlayer(IP)
+    print("[!] New Packet: {src} -> {dst}".format(src=ip_layer.src, dst=ip_layer.dst))
+
+
+
+
+#print("[*] Start sniffing...")
+sniff(iface=interface, filter="ip", prn=handle_packet)
+#print("[*] Stop sniffing")
+
+
+################################################ layers funcd ##################################
+
+
+
+
+def AH
+def AKMSuite
+def ARP
+def ASN1P_INTEGER
+def ASN1P_OID
+def ASN1P_PRIVSEQ
+def ASN1_Packet
+def ATT_Error_Response
+def ATT_Exchange_MTU_Request
+def ATT_Exchange_MTU_Response
+def ATT_Execute_Write_Request
+def ATT_Execute_Write_Response
+def ATT_Find_By_Type_Value_Request : Find By Type Value Request
+ATT_Find_By_Type_Value_Response : Find By Type Value Response
+ATT_Find_Information_Request : Find Information Request
+ATT_Find_Information_Response : Find Information Response
+ATT_Handle : ATT Short Handle
+ATT_Handle_UUID128 : ATT Handle (UUID 128)
+ATT_Handle_Value_Indication : Handle Value Indication
+ATT_Handle_Value_Notification :
+
+
+
+import optparse 
+from scapy.all import * 
+def findGuest(pkt): 
+	dest = pkt.getlayer(IP).dst 
+	raw = pkt.sprintf('%Raw.load%') 
+	name = re.findall('(?i)LAST_NAME=(.*)&', raw) 
+	room = re.findall("(?i)ROOM_NUMBER=(.*)'", raw) 
+	if name:  
+		print '[+] Found Hotel Guest ' + str(name[0])+\    ', Room #' + str(room[0]) 
+def main(): 
+	parser = optparse.OptionParser('usage %prog '+\  '-i<interface>') 
+	parser.add_option('-i', dest='interface',\  type='string', help='specify interface to listen on') 
+	(options, args) = parser.parse_args() 
+	if options.interface == None:  
+		printparser.usage  
+		exit(0) 
+	else:  
+		conf.iface = options.interface 
+	try:  
+		print '[*] Starting Hotel Guest Sniffer.'  
+		sniff(filter='tcp', prn=findGuest, store=0) 
+	except 
+		KeyboardInterrupt:  
+		exit(0) 
+if __name__ == '__main__': 
+	main()
+
+#python hotelSniff.py -i wlan0
+
+
+
+########### firewall services ############
+
+#nano /lib/systemd/system/snort.service
+[Unit]
+Description=Snort NIDS Daemon
+After=syslog.target network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/snort -q -u snort -g snort -c /etc/snort/snort.conf -i eth0
+
+[Install]
+WantedBy=multi-user.target
+
+systemctl daemon-reload
+systemctl start snort
+systemctl status snort
